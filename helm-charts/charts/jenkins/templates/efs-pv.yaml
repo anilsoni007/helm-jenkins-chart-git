@@ -1,0 +1,20 @@
+{{- if and .Values.persistence.enabled .Values.persistence.efs.enabled -}}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ template "jenkins.fullname" . }}-efs-pv
+  namespace: {{ template "jenkins.namespace" . }}
+  labels:
+    {{- include "jenkins.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.persistence.size | quote }}
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: {{ .Values.persistence.efs.fileSystemId }}::{{ .Values.persistence.efs.accessPoint }}
+{{- end }}

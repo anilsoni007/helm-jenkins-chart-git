@@ -1,0 +1,306 @@
+# Jenkins values for EKS deployment with EFS storage - HTTP Ingress
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: "jenkins"
+
+# Domain Configuration
+domain:
+  # Jenkins domain/hostname (used in JCasC and ingress)
+  hostname: "jenkins.lab.local"
+  # Admin email address
+  adminEmail: "jenkins-admin@lab.local"
+  # Protocol (http or https)
+  protocol: "http"
+
+controller:
+  componentName: "jenkins-controller"
+  
+  image:
+    registry: "docker.io"
+    repository: "jenkins/jenkins"
+    tag: "2.516.3-jdk21"
+    pullPolicy: "IfNotPresent"
+
+  # Production resource allocation
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+
+  # Security context for production
+  runAsUser: 1000
+  fsGroup: 1000
+  
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+  # Admin configuration
+  admin:
+    username: "admin"
+    createSecret: true
+    existingSecret: ""
+
+  # Jenkins configuration
+  jenkinsHome: "/var/jenkins_home"
+  jenkinsRef: "/usr/share/jenkins/ref"
+  numExecutors: 0
+  executorMode: "NORMAL"
+
+  # Service configuration
+  serviceEnabled: true
+  serviceType: ClusterIP
+  servicePort: 8080
+  targetPort: 8080
+
+  # Health probes
+  healthProbes: true
+  probes:
+    startupProbe:
+      failureThreshold: 12
+      httpGet:
+        path: '/login'
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 5
+    livenessProbe:
+      failureThreshold: 5
+      httpGet:
+        path: '/login'
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 5
+    readinessProbe:
+      failureThreshold: 3
+      httpGet:
+        path: '/login'
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 5
+
+  # Pod Disruption Budget for high availability
+  podDisruptionBudget:
+    enabled: true
+    apiVersion: "policy/v1"
+    maxUnavailable: "0"
+
+  # Agent listener configuration
+  agentListenerEnabled: true
+  agentListenerPort: 50000
+  agentListenerServiceType: "ClusterIP"
+
+  # Essential plugins for production
+  installPlugins:
+    - kubernetes:4384.v1b_6367f393d9
+    - workflow-aggregator:608.v67378e9d3db_1
+    - git:5.7.0
+    - configuration-as-code:1995.v540b_50a_eb_0c1
+    - blueocean:1.27.14
+    - pipeline-stage-view:2.34
+    - build-timeout:1.35
+    - credentials-binding:681.vf91669a_32e45
+    - timestamper:1.27
+    - ws-cleanup:0.47
+    - ant:495.v94e9b_4455b_b1
+    - gradle:2.13
+    - workflow-basic-steps:1058.vcb_fc1e3a_21a_9
+    - ssh-slaves:2.973.v0fa_8c0dea_f9f
+    - matrix-auth:3.2.2
+    - pam-auth:1.11
+    - ldap:733.v1c3f0b_9c0dcf
+    - email-ext:701.v3f168b_06fcb_1
+
+  installLatestPlugins: false
+  initializeOnce: true
+  overwritePlugins: false
+
+  # JCasC Configuration
+  JCasC:
+    defaultConfig: true
+    overwriteConfiguration: false
+    configScripts:
+      jenkins-config: |
+        jenkins:
+          systemMessage: "Lab Jenkins - HTTP Access"
+          numExecutors: 0
+          mode: EXCLUSIVE
+          scmCheckoutRetryCount: 3
+          disableRememberMe: true
+          
+        security:
+          globalJobDslSecurityConfiguration:
+            useScriptSecurity: true
+          
+        unclassified:
+          location:
+            adminAddress: "{{ .Values.domain.adminEmail }}"
+            url: "{{ .Values.domain.protocol }}://{{ .Values.domain.hostname }}"
+          
+          timestamper:
+            allPipelines: true
+            
+          buildDiscarders:
+            configuredBuildDiscarders:
+              - "jobBuildDiscarder"
+
+    security:
+      apiToken:
+        creationOfLegacyTokenEnabled: false
+        tokenGenerationOnCreationEnabled: false
+        usageStatisticsEnabled: false
+
+    securityRealm: |-
+      local:
+        allowsSignup: false
+        enableCaptcha: false
+        users:
+        - id: "${chart-admin-username}"
+          name: "Jenkins Admin"
+          password: "${chart-admin-password}"
+
+    authorizationStrategy: |-
+      loggedInUsersCanDoAnything:
+        allowAnonymousRead: false
+
+  # Sidecar configuration
+  sidecars:
+    configAutoReload:
+      enabled: true
+      image:
+        registry: docker.io
+        repository: kiwigrid/k8s-sidecar
+        tag: 1.30.7
+      resources:
+        limits:
+          cpu: 100m
+          memory: 100Mi
+        requests:
+          cpu: 50m
+          memory: 50Mi
+
+  # HTTP Ingress configuration
+  ingress:
+    enabled: true
+    apiVersion: "networking.k8s.io/v1"
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    hostName: "{{ .Values.domain.hostname }}"
+
+  # Node selection for production workloads
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    
+  # Tolerations for dedicated Jenkins nodes (optional)
+  tolerations: []
+
+  # Affinity for high availability
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - jenkins-controller
+          topologyKey: kubernetes.io/hostname
+
+  # Disable test resources
+  testEnabled: false
+
+# Agent configuration
+agent:
+  enabled: true
+  
+  # Production agent resources
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+  # Agent image
+  image:
+    registry: ""
+    repository: "jenkins/inbound-agent"
+    tag: "3341.v0766d82b_dec0-2"
+
+  # Agent configuration
+  workingDir: "/home/jenkins/agent"
+  nodeUsageMode: "NORMAL"
+  privileged: false
+  alwaysPullImage: false
+  podRetention: "Never"
+  showRawYaml: false
+  
+  # Agent limits
+  containerCap: 20
+  instanceCap: 10
+  
+  # Agent workspace volume
+  workspaceVolume:
+    type: "EmptyDir"
+    memory: false
+
+  # Node selection for agents
+  nodeSelector:
+    kubernetes.io/arch: amd64
+
+# EFS Persistence Configuration
+persistence:
+  enabled: true
+  
+  # EFS configuration
+  efs:
+    enabled: true
+    fileSystemId: "fs-065a08c7ca62f606a"
+    accessPoint: "fsap-0cf2c576b2383bb08"
+  
+  storageClass: "efs-sc"
+  accessMode: "ReadWriteMany"
+  size: "100Gi"
+  
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "efs-sc"
+  
+  labels:
+    app: jenkins
+    component: storage
+
+# RBAC Configuration
+rbac:
+  create: true
+  readSecrets: false
+
+# Service Account Configuration
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "eksctl-soni-cluster-nodegroup-stan-NodeInstanceRole-teaCpnTYEqKL"  # Add IAM role ARN if using IRSA
+  automountServiceAccountToken: true
+
+serviceAccountAgent:
+  create: true
+  annotations: {}
+  automountServiceAccountToken: true
+
+# Network Policy (enable if needed)
+networkPolicy:
+  enabled: false
+  apiVersion: networking.k8s.io/v1
+  internalAgents:
+    allowed: true
+    podLabels: {}
+    namespaceLabels: {}

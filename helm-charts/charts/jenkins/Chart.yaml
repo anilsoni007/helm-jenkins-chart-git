@@ -1,0 +1,47 @@
+apiVersion: v2
+name: jenkins
+type: application
+home: https://www.jenkins.io/
+version: 5.8.95-eks
+appVersion: 2.516.3
+description: >
+  Production-ready Jenkins for Amazon EKS with EFS storage. Optimized for scalability, security, and high availability in AWS environments.
+
+sources:
+  - https://github.com/jenkinsci/jenkins
+  - https://github.com/jenkinsci/docker-agent
+  - https://github.com/maorfr/kube-tasks
+  - https://github.com/jenkinsci/configuration-as-code-plugin
+maintainers:
+  - name: maorfr
+    email: maor.friedman@redhat.com
+  - name: torstenwalter
+    email: mail@torstenwalter.de
+  - name: mogaal
+    email: garridomota@gmail.com
+  - name: wmcdona89
+    email: wmcdona89@gmail.com
+  - name: timja
+    email: timjacomb1@gmail.com
+icon: https://get.jenkins.io/art/jenkins-logo/logo.svg
+keywords:
+  - jenkins
+  - ci
+  - devops
+annotations:
+  artifacthub.io/links: |
+    - name: Chart Source
+      url: https://github.com/jenkinsci/helm-charts/tree/main/charts/jenkins
+    - name: Jenkins
+      url: https://www.jenkins.io/
+    - name: support
+      url: https://github.com/jenkinsci/helm-charts/issues
+  artifacthub.io/images: |
+    - name: jenkins
+      image: docker.io/jenkins/jenkins:2.516.3-jdk21
+    - name: k8s-sidecar
+      image: docker.io/kiwigrid/k8s-sidecar:1.30.7
+    - name: inbound-agent
+      image: jenkins/inbound-agent:3341.v0766d82b_dec0-2
+  artifacthub.io/category: "integration-delivery"
+  artifacthub.io/license: "Apache-2.0"
