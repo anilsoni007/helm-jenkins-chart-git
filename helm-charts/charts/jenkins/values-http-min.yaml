@@ -5,7 +5,7 @@ namespaceOverride: "jenkins"
 
 # Domain Configuration
 domain:
-  hostname: "jenkins.xxxxxx.net"  # Add your jenkins domain url here..!!!
+  hostname: "jenkins.xxx.net"    # update your jenkins domain url here !!!!!
   adminEmail: "jenkins-admin@lab.local"
   protocol: "http"
 
@@ -134,7 +134,7 @@ controller:
           scriptApproval:
             approvedSignatures:
               - "method java.lang.String trim"
-        
+          
         unclassified:
           location:
             adminAddress: "{{ .Values.domain.adminEmail }}"
@@ -336,7 +336,7 @@ rbac:
 serviceAccount:
   create: true
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::442946609xxx:.."  # Add IAM role ARN if using IRSA
+    eks.amazonaws.com/role-arn: ""  # Add IAM role ARN if using IRSA
   automountServiceAccountToken: true
 
 serviceAccountAgent:
