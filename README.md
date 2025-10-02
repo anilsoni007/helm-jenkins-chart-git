@@ -1,1 +1,0 @@
-# helm-jenkins-chart-git
