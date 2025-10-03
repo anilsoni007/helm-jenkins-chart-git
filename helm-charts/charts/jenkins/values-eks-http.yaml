@@ -5,13 +5,13 @@ namespaceOverride: "jenkins"
 
 # Domain Configuration
 domain:
-  hostname: "jenkins.xxxxxx.net"  # Add your jenkins domain url here..!!!
+  hostname: "jenkins.55xxxxx.net"  # Add your jenkins domain url here..!!!
   adminEmail: "jenkins-admin@lab.local"
   protocol: "http"
 
 controller:
   componentName: "jenkins-controller"
-  
+
   image:
     registry: "docker.io"
     repository: "jenkins/jenkins"
@@ -21,16 +21,16 @@ controller:
   # Production resource allocation
   resources:
     requests:
-      cpu: "1000m"
+      cpu: "500m"
       memory: "2Gi"
     limits:
-      cpu: "4000m"
+      cpu: "1000m"
       memory: "8Gi"
 
   # Security context for production
   runAsUser: 1000
   fsGroup: 1000
-  
+
   containerSecurityContext:
     runAsUser: 1000
     runAsGroup: 1000
@@ -92,8 +92,6 @@ controller:
   agentListenerServiceType: "ClusterIP"
 
   # Essential plugins for production
-  # Essential plugins for production - FIXED VERSION
-  # Essential plugins - let Jenkins resolve all dependencies automatically
   installPlugins:
     - kubernetes
     - workflow-aggregator
@@ -109,40 +107,220 @@ controller:
     - matrix-auth
     - pam-auth
     - job-dsl
+    - blueocean
 
   # CRITICAL: Let Jenkins automatically install compatible versions
   installLatestPlugins: true
   installLatestSpecifiedPlugins: true
   additionalPlugins: []
 
-  # JCasC Configuration - FIXED
+  # JCasC Configuration with Pod Templates
   JCasC:
     defaultConfig: false
     overwriteConfiguration: true
     configScripts:
       jenkins-config: |
         jenkins:
-          systemMessage: "Lab Jenkins - HTTP Access"
+          systemMessage: "Lab Jenkins - HTTP Access with Pod Templates"
           numExecutors: 0
           mode: EXCLUSIVE
           scmCheckoutRetryCount: 3
           disableRememberMe: true
           
+          clouds:
+            - kubernetes:
+                name: "kubernetes"
+                serverUrl: "https://kubernetes.default"
+                namespace: "jenkins"
+                jenkinsUrl: "http://jenkins.xxxxxxx.net"
+                jenkinsTunnel: "jenkins-agent:50000"
+                connectTimeout: 5
+                readTimeout: 15
+                containerCapStr: "20"
+                maxRequestsPerHostStr: "32"
+                retentionTimeout: 5
+                podRetention: "never"
+                #serviceAccount: "jenkins-agent"
+                
+                templates:
+                  # Maven Pod Template
+                  - name: "maven"
+                    label: "maven"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    containers:
+                      - name: "maven"
+                        image: "maven:3.9-eclipse-temurin-17"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    volumes:
+                      - emptyDirVolume:
+                          memory: false
+                          mountPath: "/root/.m2"
+                    yamlMergeStrategy: "override"
+                  
+                  # Java (JDK) Pod Template
+                  - name: "java"
+                    label: "java jdk"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    containers:
+                      - name: "java"
+                        image: "eclipse-temurin:17-jdk"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    yamlMergeStrategy: "override"
+                  
+                  # Docker Pod Template (DinD - Docker in Docker)
+                  - name: "docker"
+                    label: "docker dind"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    containers:
+                      - name: "docker"
+                        image: "docker:27-dind"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: true
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    volumes:
+                      - emptyDirVolume:
+                          memory: false
+                          mountPath: "/var/lib/docker"
+                    yamlMergeStrategy: "override"
+                  
+                  # Kaniko Pod Template (Kubernetes-native Docker builds)
+                  - name: "kaniko"
+                    label: "kaniko docker-build"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    containers:
+                      - name: "kaniko"
+                        image: "gcr.io/kaniko-project/executor:debug"
+                        command: "/busybox/cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    yamlMergeStrategy: "override"
+                  
+                  # Node.js Pod Template
+                  - name: "nodejs"
+                    label: "nodejs node npm"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    containers:
+                      - name: "nodejs"
+                        image: "node:20-alpine"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    yamlMergeStrategy: "override"
+                  
+                  # Python Pod Template
+                  - name: "python"
+                    label: "python python3"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    containers:
+                      - name: "python"
+                        image: "python:3.12-slim"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    yamlMergeStrategy: "override"
+                  
+                  # Gradle Pod Template
+                  - name: "gradle"
+                    label: "gradle"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    agentContainer: "gradle"
+                    containers:
+                      - name: "gradle"
+                        image: "gradle:8.5-jdk17"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "500m"
+                        resourceRequestMemory: "1Gi"
+                        resourceLimitCpu: "2000m"
+                        resourceLimitMemory: "4Gi"
+                        workingDir: "/home/jenkins/agent"
+                    volumes:
+                      - emptyDirVolume:
+                          memory: false
+                          mountPath: "/home/gradle/.gradle"
+                    yamlMergeStrategy: "override"
+                  
+                  # Kubectl/Helm Pod Template
+                  - name: "kubectl"
+                    label: "kubectl helm k8s"
+                    nodeUsageMode: NORMAL
+                    idleMinutes: 5
+                    agentContainer: "kubectl"
+                    containers:
+                      - name: "kubectl"
+                        image: "alpine/k8s:1.28.3"
+                        command: "/bin/sh -c"
+                        args: "cat"
+                        ttyEnabled: true
+                        privileged: false
+                        resourceRequestCpu: "200m"
+                        resourceRequestMemory: "512Mi"
+                        resourceLimitCpu: "1000m"
+                        resourceLimitMemory: "2Gi"
+                        workingDir: "/home/jenkins/agent"
+                    yamlMergeStrategy: "override"
+
         security:
-          # REMOVED globalJobDslSecurityConfiguration - requires job-dsl plugin
-          # It will be auto-configured when job-dsl plugin loads
           scriptApproval:
             approvedSignatures:
               - "method java.lang.String trim"
-        
+
         unclassified:
           location:
             adminAddress: "{{ .Values.domain.adminEmail }}"
             url: "{{ .Values.domain.protocol }}://{{ .Values.domain.hostname }}"
-          
+
           timestamper:
             allPipelines: true
-            
+
           buildDiscarders:
             configuredBuildDiscarders:
               - "jobBuildDiscarder"
@@ -165,54 +343,6 @@ controller:
     authorizationStrategy: |-
       loggedInUsersCanDoAnything:
         allowAnonymousRead: false
-
-  # JCasC Configuration
-  # JCasC:
-  #   defaultConfig: false
-  #   overwriteConfiguration: true
-  #   configScripts:
-  #     jenkins-config: |
-  #       jenkins:
-  #         systemMessage: "Lab Jenkins - HTTP Access"
-  #         numExecutors: 0
-  #         mode: EXCLUSIVE
-  #         scmCheckoutRetryCount: 3
-  #         disableRememberMe: true
-          
-  #       security:
-  #         globalJobDslSecurityConfiguration:
-  #           useScriptSecurity: true
-          
-  #       unclassified:
-  #         location:
-  #           adminAddress: "{{ .Values.domain.adminEmail }}"
-  #           url: "{{ .Values.domain.protocol }}://{{ .Values.domain.hostname }}"
-          
-    #       timestamper:
-    #         allPipelines: true
-            
-    #       buildDiscarders:
-    #         configuredBuildDiscarders:
-    #           - "jobBuildDiscarder"
-
-    # security:
-    #   apiToken:
-    #     creationOfLegacyTokenEnabled: false
-    #     tokenGenerationOnCreationEnabled: false
-    #     usageStatisticsEnabled: false
-
-    # securityRealm: |-
-    #   local:
-    #     allowsSignup: false
-    #     enableCaptcha: false
-    #     users:
-    #     - id: "${chart-admin-username}"
-    #       name: "Jenkins Admin"
-    #       password: "${chart-admin-password}"
-
-    # authorizationStrategy: |-
-    #   loggedInUsersCanDoAnything:
-    #     allowAnonymousRead: false
 
   # Sidecar configuration
   sidecars:
@@ -245,7 +375,7 @@ controller:
   # Node selection for production workloads
   nodeSelector:
     kubernetes.io/arch: amd64
-    
+
   # Tolerations for dedicated Jenkins nodes (optional)
   tolerations: []
 
@@ -269,7 +399,7 @@ controller:
 # Agent configuration
 agent:
   enabled: true
-  
+
   # Production agent resources
   resources:
     requests:
@@ -292,11 +422,11 @@ agent:
   alwaysPullImage: false
   podRetention: "Never"
   showRawYaml: false
-  
+
   # Agent limits
   containerCap: 20
   instanceCap: 10
-  
+
   # Agent workspace volume
   workspaceVolume:
     type: "EmptyDir"
@@ -309,20 +439,20 @@ agent:
 # EFS Persistence Configuration
 persistence:
   enabled: true
-  
+
   # EFS configuration
   efs:
     enabled: true
-    fileSystemId: "fs-065a08c7ca62f606a"
-    accessPoint: "fsap-0cf2c576b2383bb08"
-  
-  storageClass: "efs-sc"
+    fileSystemId: "fs-0xxxxx"
+    accessPoint: "fsap-0f3xxxxxxxx"
+
+  storageClass: "efs-jenkins-sc"
   accessMode: "ReadWriteMany"
   size: "100Gi"
-  
+
   annotations:
-    volume.beta.kubernetes.io/storage-class: "efs-sc"
-  
+    volume.beta.kubernetes.io/storage-class: "efs-jenkins-sc"
+
   labels:
     app: jenkins
     component: storage
@@ -336,7 +466,7 @@ rbac:
 serviceAccount:
   create: true
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::442946609xxx:.."  # Add IAM role ARN if using IRSA
+    eks.amazonaws.com/role-arn: "arn:aws:iam::xxxxx:role/efs-csi-role"
   automountServiceAccountToken: true
 
 serviceAccountAgent:
