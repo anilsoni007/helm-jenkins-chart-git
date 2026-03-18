@@ -1,0 +1,218 @@
+# Jenkins Helm Chart Values for EKS with EFS (No Domain)
+# EFS Configuration:
+# - File System ID: fs-0f0d06710be37f34b
+# - Access Point ID: fsap-0cd91c042b87f9cf0
+
+controller:
+  componentName: "jenkins-controller"
+  
+  image:
+    registry: "docker.io"
+    repository: "jenkins/jenkins"
+    tag: "2.479-jdk21"
+    tagLabel: jdk21
+    pullPolicy: "Always"
+
+  # Admin credentials
+  admin:
+    username: "admin"
+    password: "Admin@123456"  # Change this to a secure password
+    createSecret: true
+
+  jenkinsAdminEmail: "admin@example.com"
+
+  # Resource allocation
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2048Mi"
+    limits:
+      cpu: "2000m"
+      memory: "4096Mi"
+
+  # Java options for better performance
+  javaOpts: "-Xms2048m -Xmx2048m"
+
+  # Service configuration - LoadBalancer for external access without domain
+  serviceType: LoadBalancer
+  servicePort: 8080
+  targetPort: 8080
+  
+  serviceAnnotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+  # Disable ingress since we're using LoadBalancer
+  ingress:
+    enabled: false
+
+  # Security context for EFS compatibility
+  podSecurityContextOverride:
+    runAsUser: 1000
+    runAsNonRoot: true
+    fsGroup: 1000
+
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+  # Jenkins Configuration as Code
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      welcome-message: |
+        jenkins:
+          systemMessage: "Jenkins on EKS with EFS Storage - Managed by Helm"
+          numExecutors: 0
+          mode: EXCLUSIVE
+          
+    securityRealm: |-
+      local:
+        allowsSignup: false
+        enableCaptcha: false
+        users:
+        - id: "${chart-admin-username}"
+          name: "Jenkins Admin"
+          password: "${chart-admin-password}"
+    
+    authorizationStrategy: |-
+      loggedInUsersCanDoAnything:
+        allowAnonymousRead: false
+
+  # Install essential plugins
+  installPlugins:
+    - kubernetes:4384.v1b_6367f393d9
+    - workflow-aggregator:608.v67378e9d3db_1
+    - git:5.7.0
+    - configuration-as-code:1995.v540b_50a_eb_0c1
+    - prometheus:808.v3b_a_60a_e4f26d
+    - aws-credentials:218.v1b_e9466ec5da_
+    - pipeline-aws:1.43
+
+  installLatestPlugins: true
+  installLatestSpecifiedPlugins: false
+
+  # Agent listener configuration
+  agentListenerEnabled: true
+  agentListenerPort: 50000
+  agentListenerServiceType: "ClusterIP"
+
+  # Health probes
+  healthProbes: true
+  probes:
+    startupProbe:
+      failureThreshold: 12
+      periodSeconds: 10
+      timeoutSeconds: 5
+    livenessProbe:
+      failureThreshold: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+    readinessProbe:
+      failureThreshold: 3
+      periodSeconds: 10
+      timeoutSeconds: 5
+
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    serviceMonitorAdditionalLabels: {}
+    scrapeInterval: 60s
+    scrapeEndpoint: /prometheus
+
+  # Config auto-reload
+  sidecars:
+    configAutoReload:
+      enabled: true
+
+# Agent configuration
+agent:
+  enabled: true
+  
+  image:
+    registry: "docker.io"
+    repository: "jenkins/inbound-agent"
+    tag: "3341.v0766d82b_dec0-2"
+
+  resources:
+    requests:
+      cpu: "512m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1024Mi"
+
+  podRetention: "Never"
+  showRawYaml: true
+  
+  # Kubernetes connection settings
+  maxRequestsPerHostStr: "32"
+  retentionTimeout: 5
+  waitForPodSec: 600
+
+  # Agent pod template
+  podName: "jenkins-agent"
+  customJenkinsLabels:
+    - "eks-agent"
+  
+  workingDir: "/home/jenkins/agent"
+  
+  # Use restricted security context
+  restrictedPssSecurityContext: false
+
+# Persistence configuration for EFS
+persistence:
+  enabled: true
+  
+  # Don't use existing claim - let Helm create it
+  existingClaim: ""
+  
+  # EFS storage class name
+  storageClass: "efs-sc"
+  
+  annotations: {}
+  labels: {}
+  
+  # EFS supports ReadWriteMany
+  accessMode: "ReadWriteMany"
+  
+  size: "10Gi"
+  
+  # No subPath needed for EFS access point
+  subPath: ""
+  
+  # EFS Configuration
+  efs:
+    enabled: true
+    fileSystemId: "fs-0f0d06710be37f34b"
+    accessPoint: "fsap-0cd91c042b87f9cf0"
+
+# RBAC configuration
+rbac:
+  create: true
+  readSecrets: false
+
+# Service Account configuration
+serviceAccount:
+  create: true
+  name: "jenkins"
+  annotations:
+    # Add IAM role annotation if using IRSA for EFS
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME
+  automountServiceAccountToken: true
+
+serviceAccountAgent:
+  create: true
+  name: "jenkins-agent"
+  annotations: {}
+  automountServiceAccountToken: true
+
+# Network Policy
+networkPolicy:
+  enabled: false
+
+# AWS Security Group Policies (optional)
+awsSecurityGroupPolicies:
+  enabled: false
