@@ -1,0 +1,106 @@
+# Minimal Jenkins values for EKS with EFS - Troubleshooting
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: "jenkins"
+
+controller:
+  componentName: "jenkins-controller"
+
+  image:
+    registry: "docker.io"
+    repository: "jenkins/jenkins"
+    tag: "2.516.3-jdk21"
+    pullPolicy: "IfNotPresent"
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+  runAsUser: 1000
+  fsGroup: 1000
+
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+  admin:
+    username: "admin"
+    password: "Admin@123456"
+    createSecret: true
+
+  jenkinsHome: "/var/jenkins_home"
+  numExecutors: 0
+
+  serviceType: LoadBalancer
+  servicePort: 8080
+  targetPort: 8080
+
+  serviceAnnotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+  healthProbes: true
+
+  agentListenerEnabled: true
+  agentListenerPort: 50000
+
+  # Minimal plugins - let Jenkins install dependencies
+  installPlugins:
+    - kubernetes:4384.v1b_6367f393d9
+    - workflow-aggregator:608.v67378e9d3db_1
+    - git:5.7.0
+    - configuration-as-code:1995.v540b_50a_eb_0c1
+
+  installLatestPlugins: true
+  installLatestSpecifiedPlugins: false
+
+  JCasC:
+    defaultConfig: true
+    configScripts: {}
+
+  sidecars:
+    configAutoReload:
+      enabled: true
+
+  ingress:
+    enabled: false
+
+  testEnabled: false
+
+agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: "512m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1024Mi"
+
+# EFS Persistence
+persistence:
+  enabled: true
+  efs:
+    enabled: true
+    fileSystemId: "fs-0f0d06710be37f34b"
+    accessPoint: "fsap-0cd91c042b87f9cf0"
+  storageClass: "efs-sc"
+  accessMode: "ReadWriteMany"
+  size: "100Gi"
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+
+serviceAccountAgent:
+  create: true
+
+networkPolicy:
+  enabled: false

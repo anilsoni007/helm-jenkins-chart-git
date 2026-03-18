@@ -99,31 +99,31 @@ controller:
   agentListenerPort: 50000
   agentListenerServiceType: "ClusterIP"
 
-  # Essential plugins for production
+  # Essential plugins - Let Jenkins resolve compatible versions
   installPlugins:
-    - kubernetes:4384.v1b_6367f393d9
-    - workflow-aggregator:608.v67378e9d3db_1
-    - git:5.7.0
-    - configuration-as-code:1995.v540b_50a_eb_0c1
-    - blueocean:1.27.14
-    - pipeline-stage-view:2.34
-    - build-timeout:1.35
-    - credentials-binding:681.vf91669a_32e45
-    - timestamper:1.27
-    - ws-cleanup:0.47
-    - gradle:2.13
-    - ssh-slaves:2.973.v0fa_8c0dea_f9f
-    - matrix-auth:3.2.2
-    - pam-auth:1.11
-    - email-ext:701.v3f168b_06fcb_1
-    - job-dsl:1.87
-    - prometheus:808.v3b_a_60a_e4f26d
-    - aws-credentials:218.v1b_e9466ec5da_
-    - pipeline-aws:1.43
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - configuration-as-code
+    - blueocean
+    - pipeline-stage-view
+    - build-timeout
+    - credentials-binding
+    - timestamper
+    - ws-cleanup
+    - gradle
+    - ssh-slaves
+    - matrix-auth
+    - pam-auth
+    - email-ext
+    - job-dsl
+    - prometheus
+    - aws-credentials
+    - pipeline-aws
 
-  # CRITICAL: Let Jenkins automatically install compatible versions
+  # CRITICAL: Let Jenkins automatically install latest compatible versions
   installLatestPlugins: true
-  installLatestSpecifiedPlugins: false
+  installLatestSpecifiedPlugins: true
   initializeOnce: false
   overwritePlugins: false
 
