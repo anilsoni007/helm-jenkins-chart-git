@@ -269,7 +269,6 @@ controller:
                     label: "gradle"
                     nodeUsageMode: NORMAL
                     idleMinutes: 5
-                    agentContainer: "gradle"
                     containers:
                       - name: "gradle"
                         image: "gradle:8.5-jdk17"
@@ -294,7 +293,6 @@ controller:
                     nodeUsageMode: NORMAL
                     idleMinutes: 5
                     serviceAccount: "jenkins-kubectl"
-                    agentContainer: "kubectl"
                     containers:
                       - name: "kubectl"
                         image: "alpine/k8s:1.28.3"
@@ -314,7 +312,6 @@ controller:
                     label: "salesforce sfdx sf-cli"
                     nodeUsageMode: NORMAL
                     idleMinutes: 5
-                    agentContainer: "salesforce"
                     containers:
                       - name: "salesforce"
                         image: "salesforce/cli:latest-full"
