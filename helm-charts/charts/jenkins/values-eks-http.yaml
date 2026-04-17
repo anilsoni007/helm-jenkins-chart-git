@@ -108,6 +108,7 @@ controller:
     - pam-auth
     - job-dsl
     - blueocean
+    - azure-ad
 
   # CRITICAL: Let Jenkins automatically install compatible versions
   installLatestPlugins: true

@@ -116,6 +116,7 @@ controller:
     - email-ext
     - prometheus
     - metrics
+    - azure-ad
 
   # CRITICAL: Let Jenkins automatically install compatible versions
   installLatestPlugins: true
